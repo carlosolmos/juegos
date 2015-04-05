@@ -21,7 +21,9 @@ function preload() {
     game.load.image('sky', 'assets/sky.png');
     game.load.image('ground', 'assets/platform.png');
     game.load.image('star', 'assets/star.png');
-    game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
+    game.load.image('popo', 'assets/popo.png');
+    game.load.spritesheet('dude', 'assets/fersheet.png', 99, 128);
+    game.load.spritesheet('dude', 'assets/carlossheet.png', 99, 128);
     game.load.spritesheet('veggies', 'assets/fruitnveg32wh37.png', 32, 32);
 
 }
@@ -31,9 +33,11 @@ var platforms;
 var cursors;
 var veggies;
 var stars;
+var popos;
 var score = 0;
 var scoreText;
-
+var nextStar = Math.floor((Math.random() * 30) + 1);
+var nextPopo = Math.floor((Math.random() * 30) + 1);
 function create() {
 
     //  We're going to be using physics, so enable the Arcade Physics system
@@ -42,7 +46,7 @@ function create() {
     //  A simple background for our game
     game.add.sprite(0, 0, 'sky');
 
-    //  The platforms group contains the ground and the 2 ledges we can jump on
+    //  The platforms group contains the ground
     platforms = game.add.group();
 
     //  We will enable physics for any object that is created in this group
@@ -57,16 +61,15 @@ function create() {
     //  This stops it from falling away when you jump on it
     ground.body.immovable = true;
 
-    //  Now let's create two ledges
-    var ledge = platforms.create(400, 400, 'ground');
-    ledge.body.immovable = true;
-
-    ledge = platforms.create(-150, 250, 'ground');
-    ledge.body.immovable = true;
-
     // The player and its settings
-    player = game.add.sprite(32, game.world.height - 150, 'dude');
-
+    player = game.add.sprite(32, game.world.height - 250, 'dude');
+    //  We need to enable physics on the player
+    game.physics.arcade.enable(player);
+    //  Player physics properties. Give the little guy a slight bounce.
+    player.body.bounce.y = 0.2;
+    player.body.gravity.y = 300;
+    player.body.collideWorldBounds = true;
+    
     //  We need to enable physics on the player
     game.physics.arcade.enable(player);
 
@@ -82,29 +85,14 @@ function create() {
     //  Finally some stars and veggies to collect
     stars = game.add.group();
     veggies = game.add.group();
-    
+    popos = game.add.group();
     
     //  We will enable physics for any star that is created in this group
     stars.enableBody = true;
+    popos.enableBody = true;
     veggies.enableBody = true;
     
-    //  Here we'll create 12 of them evenly spaced apart
-    for (var i = 0; i < 12; i++)
-    {
-        //  Create a star inside of the 'stars' group
-        var star = stars.create(i * 70, 0, 'star');
-        //create a veggie inside the 'veggies' group
-        var veg = veggies.create(game.world.randomX, Math.random() * 500, 'veggies', game.rnd.integerInRange(0, 36));
-        
-        //  Let gravity do its thing
-        star.body.gravity.y = 300;
-        veg.body.gravity.y = 300;
-        
-        //  This just gives each star and veggie a slightly random bounce value
-        star.body.bounce.y = 0.7 + Math.random() * 0.2;
-        veg.body.bounce.y = 0.7 + Math.random() * 0.2;
-    }
-
+    
     //  The score
     scoreText = game.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
 
@@ -112,16 +100,57 @@ function create() {
     cursors = game.input.keyboard.createCursorKeys();
     
 }
-
+    
 function update() {
-
+    //  Here we'll create 12 of them evenly spaced apart
+    /*for (var i = 0; i < 12; i++)
+    {
+        //create a veggie inside the 'veggies' group
+        var veg = veggies.create(game.world.randomX, Math.random() * 500, 'veggies', game.rnd.integerInRange(0, 36));
+        veg.body.gravity.y = 50;   
+    }*/
+    
+    //count veggies
+    var veggiesAlive = 0;
+    veggies.forEach(function(veg) {
+        if(veg.alive){
+            veggiesAlive = veggiesAlive + 1;
+        }
+    }, this);
+    
+    if(veggiesAlive<3){
+        spawnVeggie();
+    }
+    
+    //check if is time for a star
+    if((--nextStar) === 0){
+        nextStar = Math.floor((Math.random() * 1000) + 1);
+        if(stars.length === 0){
+            spawnStar();
+        }
+    }
+    
+    if((--nextPopo) === 0){
+        nextPopo = Math.floor((Math.random() * 1000) + 1);
+        if(popos.length === 0){
+            spawnPopo();
+        }
+    }
+    
     //  Collide the player and the stars with the platforms
     game.physics.arcade.collide(player, platforms);
     game.physics.arcade.collide(stars, platforms);
-    game.physics.arcade.collide(veggies, platforms);
+    
+   // game.physics.arcade.collide(veggies, platforms);
 
     //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
     game.physics.arcade.overlap(player, stars, collectStar, null, this);
+    
+    //  Checks to see if the player overlaps with any of the veggies, if he does call the collectVeggiefunction
+    game.physics.arcade.overlap(player, veggies, collectVeggie, null, this);
+    
+    // Checks to see if the player overlaps with the popo. 
+    game.physics.arcade.overlap(player, popos, collectPopo, null, this);
 
     //  Reset the players velocity (movement)
     player.body.velocity.x = 0;
@@ -129,14 +158,14 @@ function update() {
     if (cursors.left.isDown)
     {
         //  Move to the left
-        player.body.velocity.x = -150;
+        player.body.velocity.x = -250;
 
         player.animations.play('left');
     }
     else if (cursors.right.isDown)
     {
         //  Move to the right
-        player.body.velocity.x = 150;
+        player.body.velocity.x = 250;
 
         player.animations.play('right');
     }
@@ -153,20 +182,84 @@ function update() {
     {
         player.body.velocity.y = -350;
     }
+    
 
 }
 
 function collectStar (player, star) {
     
     // Removes the star from the screen
-    star.kill();
+    star.destroy();
+
+    //  Add and update the score
+    score += 100;
+    scoreText.text = 'Score: ' + score;
+
+}
+    
+function collectPopo(player, popo){
+    // Removes the star from the screen
+    popo.destroy();
+
+    //  Add and update the score
+    score -= 100;
+    if(score < 0){
+        score = 0;
+    }
+    scoreText.text = 'Score: ' + score;
+}
+
+function collectVeggie (player, veggie) {
+    
+    // Removes the star from the screen
+    veggie.destroy();
 
     //  Add and update the score
     score += 10;
     scoreText.text = 'Score: ' + score;
 
 }
+    
+// called when you need to spawn a recycled / new sprite
+function spawnVeggie() {
+  
+  var veg = veggies.create(game.world.randomX, 0, 'veggies', game.rnd.integerInRange(0, 36));
+      veg.body.gravity.y = 50 + game.rnd.integerInRange(0, 100);
+      veg.outOfBoundsKill = true;
+      veg. checkWorldBounds = true;
+      veg.events.onOutOfBounds.add(destroySprite, this);
+   
 
+}
+    
+function destroySprite(item){
+    item.destroy();
+}
+
+function spawnStar() {
+    //  Create a star inside of the 'stars' group
+    var star = stars.create(game.world.randomX, 0, 'star');  
+    //  Let gravity do its thing
+    star.body.gravity.y = 300;
+    star.outOfBoundsKill = true;
+    star. checkWorldBounds = true;
+    star.events.onOutOfBounds.add(destroySprite, this);
+    //  This just gives each star and veggie a slightly random bounce value
+    star.body.bounce.y = 0.7 + Math.random() * 0.2;
+
+}
+
+function spawnPopo() {
+    //  Create a star inside of the 'stars' group
+    var popo = popos.create(game.world.randomX, 0, 'popo');  
+    //  Let gravity do its thing
+     popo.body.gravity.y = 50 + game.rnd.integerInRange(0, 100);
+      popo.outOfBoundsKill = true;
+      popo. checkWorldBounds = true;
+      popo.events.onOutOfBounds.add(destroySprite, this);
+
+}
+    
 </script>
 
 </body>
