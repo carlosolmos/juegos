@@ -20,10 +20,16 @@ var theGame = function(game){
 	scoreText = null;
     topScore = 0;
     _timer =0;
+    cielo2 = null;
+
+    
 };
 
 theGame.prototype = {
   	create:function(){
+        //if(cielo2 == null)
+        cielo2 = this.game.add.sprite(0, 0,'cielo2');
+        
         pipeGroup = this.game.add.group();
         score = 0;
         _timer = 0;
@@ -46,6 +52,7 @@ theGame.prototype = {
         this.game.input.onDown.add(this.flap, this);
         //this.game.time.events.loop(pipeInterval, this.addPipe); 
         this.addPipe();
+        
     },
     
     update:function(){
